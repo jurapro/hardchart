@@ -1,0 +1,156 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <script>
+        //Скрипт мы обязательно оставим в html
+        //И воспользуемся кучей глобальных переменных через var
+        var startX = 0; // с какой точки начинать рисовать, изменяя ее можно двигать начало графика
+        var dps = []; // массив точек, которые мы отрисовываем на графике
+
+        var xVal = 0; // количество точек по X
+        var yVal = 100; // верхняя граница по Y
+
+
+        var updateInterval = 300; // Скорость обновления
+        var dataLength = 1000; // Количество точек на экране, по факту масштаб
+
+        var speedX = 5; // скорость перемещения графика при перетаскивании (внизу все равно мы ее пересчитаем)
+
+        var dpsAll = []; // массив в который мы будем пушить ВСЕ точки. очищать мы его конечно не будем, пусть скрипт работает пока по памяти не сдохнет))
+
+        window.onload = function () {
+            var chart = new CanvasJS.Chart("chartContainer", {
+                title: {
+                    text: "Худший js код в истории"
+                },
+                data: [{
+                    type: "line",
+                    dataPoints: dps
+                }]
+            });
+
+            //задаем рандомные первые count точек и отрисовываем их на графике
+            //закидываем точки в оба масссива. изначально они одинаковые
+            var startChart = function (count) {
+                for (var j = 0; j < count; j++) {
+                    yVal = yVal + Math.round(10 + Math.random() * (-10 - 10));
+                    dpsAll.push({
+                        x: xVal,
+                        y: yVal
+                    });
+                    dps.push({
+                        x: xVal,
+                        y: yVal
+                    });
+                    xVal++;
+                }
+                chart.render();
+            }
+
+            //функция добавления новых точек, вызывается раз в updateInterval мс
+            var updateChart = function () {
+                //добавляем в массив dpsAll случайную точку
+                yVal = yVal + Math.round(10 + Math.random() * (-10 - 10));
+                dpsAll.push({
+                    x: xVal,
+                    y: yVal
+                });
+                // x у нас по-порядку идет, так что похер
+                xVal++;
+
+                //магия. очищаем массив dps
+                dps.length = 0;
+                //а потом забиваем его срезом из dpsAll, начиная с startX и плюс сколько точек у нас на экран влезает (dataLength - читай масштаб)
+                dpsAll.slice(startX, startX + dataLength).forEach(item => {
+                    dps.push(item);
+                });
+                //сдвигаем начало отрисовки массива
+                startX++;
+                //рисуем сие великолепие
+                chart.render();
+            };
+
+            // а вот входная точка приложения. она посередине, не правда ли очень логично?
+            startChart(dataLength);
+            //var up = setInterval(function () { updateChart() }, updateInterval);
+            let timerId = setTimeout(function tick() {
+                updateChart()
+                timerId = setTimeout(tick, updateInterval);
+            }, updateInterval);
+
+            //а тут у нас переменная в которой фиксируется адрес курсора при нажатии. объявлена тоже глобально но где-то посередь скрипта
+            var screenX = 0;
+
+            document.getElementById('chartContainer').onmousedown = (e) => {
+                //фиксируем X когда мышь нажали
+                screenX = e.clientX;
+            }
+
+            document.getElementById('chartContainer').onmouseup = (e) => {
+                //скролл отключема когда отпускаем мышь
+                screenX = 0;
+            }
+
+            document.getElementById('chartContainer').onmousemove = (e) => {
+                //если просто водим мышкой, то нах
+                if (screenX == 0) return;
+
+                //еще немного магии. тут мы будем скорость скролла считать
+                //сначала считаем ширину канваса и разницу насколько мы пододвинули в пикселях график
+                var offsetWidth = document.getElementById('chartContainer').clientWidth;
+                var deltaX = Math.abs(screenX - e.clientX);
+
+                //а скорость это количество пододвинутых пикселей * на количество точкек на экране (масштаб) и поделенное на ширину
+                //например если у нас на экране 50 точек, событие отработало и зафиксировало разницу между X в 2 пикселя 
+                //(там каждый раз разное будет, смотря с какой скоростью двигать мышью) и ширина канваса 100 пикселей, то нужно сдвинуть график на 1 точку
+                //это и есть скорость
+                speedX = Math.round((dataLength * deltaX) / offsetWidth);
+
+                //тут просто вычисляется куда двигаем направо или налево
+                //плюс некоторые ограничения чтобы за границы не вылезло
+                if (e.clientX < screenX) {
+                    if (startX + speedX < dpsAll.length - dataLength) {
+                        startX += speedX;
+                    }
+                }
+                if (e.clientX > screenX) {
+                    if (startX - speedX > 0) {
+                        startX -= speedX;
+                    }
+                }
+
+                screenX = e.clientX;;
+
+            }
+        }
+
+        function zoom(length) {
+            dataLength = length;
+        }
+        function speedUpdate(length) {
+            updateInterval = length;
+        }
+    </script>
+</head>
+
+<body>
+    <div id="chartContainer" style="height: 370px; width:100%;"></div>
+    <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+    <center>
+        <p>Масштаб (количество точек на экране)</p>
+        <button onclick="zoom(50)">50</button>
+        <button onclick="zoom(100)">100</button>
+        <button onclick="zoom(500)">500</button>
+        <button onclick="zoom(1000)">1000</button>
+    </center>
+    <center>
+        <p>Скорость отрисовки</p>
+        <button onclick="speedUpdate(100)">100</button>
+        <button onclick="speedUpdate(300)">300</button>
+        <button onclick="speedUpdate(500)">500</button>
+        <button onclick="speedUpdate(1000)">1000</button>
+    </center>
+</body>
+
+</html>
