@@ -92,6 +92,11 @@
                 screenX = 0;
             }
 
+            document.getElementById('chartContainer').onmouseleave = (e) => {
+                //скролл отключема когда уводим мышь
+                screenX = 0;
+            }
+
             document.getElementById('chartContainer').onmousemove = (e) => {
                 //если просто водим мышкой, то нах
                 if (screenX == 0) return;
